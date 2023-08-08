@@ -1,51 +1,35 @@
-FROM nvidia/cuda:9.2-cudnn7-devel-ubuntu16.04
-MAINTAINER Tabish Rashid
+FROM pytorch/pytorch:1.11.0-cuda11.3-cudnn8-devel
+MAINTAINER Christian Schroeder de Witt
 
-# CUDA includes
-ENV CUDA_PATH /usr/local/cuda
-ENV CUDA_INCLUDE_PATH /usr/local/cuda/include
-ENV CUDA_LIBRARY_PATH /usr/local/cuda/lib64
+RUN rm /etc/apt/sources.list.d/cuda.list
+RUN rm /etc/apt/sources.list.d/nvidia-ml.list
+RUN apt-get update && apt-get install -y git
 
-# Ubuntu Packages
-RUN apt-get update -y && apt-get install software-properties-common -y && \
-    add-apt-repository -y multiverse && apt-get update -y && apt-get upgrade -y && \
-    apt-get install -y apt-utils nano vim man build-essential wget sudo && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install curl and other dependencies
-RUN apt-get update -y && apt-get install -y curl libssl-dev openssl libopenblas-dev \
-    libhdf5-dev hdf5-helpers hdf5-tools libhdf5-serial-dev libprotobuf-dev protobuf-compiler git
-RUN curl -sk https://raw.githubusercontent.com/torch/distro/master/install-deps | bash && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install python3 pip3
-RUN apt-get update
-RUN apt-get -y install python3
-RUN apt-get -y install python3-pip
-RUN pip3 install --upgrade pip
-
-# Python packages we use (or used at one point...)
-RUN pip3 install numpy scipy pyyaml matplotlib
-RUN pip3 install imageio
-RUN pip3 install tensorboard-logger
-RUN pip3 install pygame
+RUN pip install --upgrade pip
+RUN pip install numpy scipy pyyaml matplotlib imageio pygame tensorboard-logger ruamel.base ryd wandb
 
 RUN mkdir /install
 WORKDIR /install
 
-RUN pip3 install jsonpickle==0.9.6
+RUN pip install jsonpickle==0.9.6
 # install Sacred (from OxWhirl fork)
-RUN pip3 install setuptools
-RUN git clone https://github.com/oxwhirl/sacred.git /install/sacred && cd /install/sacred && python3 setup.py install
+RUN pip install setuptools
+RUN git clone https://github.com/oxwhirl/sacred.git /install/sacred && cd /install/sacred && python setup.py install
 
-#### -------------------------------------------------------------------
-#### install pytorch
-#### -------------------------------------------------------------------
-RUN pip3 install torch
-RUN pip3 install torchvision snakeviz pytest probscale
+# Install pymongo
+RUN pip install pymongo
 
 ## -- SMAC
-RUN pip3 install git+https://github.com/oxwhirl/smac.git
-ENV SC2PATH /pymarl/3rdparty/StarCraftII
+ENV smac_ver 1
+RUN pip install "protobuf<3.21" git+https://github.com/oxwhirl/smacv2.git@posmac
+ENV SC2PATH /home/jonook/src/pymarl-dev/3rdparty/StarCraftII
 
-WORKDIR /pymarl
+RUN git clone https://github.com/koulanurag/ma-gym.git /install/ma-gym && cd /install/ma-gym && pip install -e .
+
+ARG UID
+RUN useradd -u $UID --create-home jonook
+USER jonook
+WORKDIR /home/jonook/src/pymarl-dev
+
+RUN echo 'set editing-mode vi' >> /home/jonook/.inputrc
+RUN echo 'set keymap vi' >> /home/jonook/.inputrc
